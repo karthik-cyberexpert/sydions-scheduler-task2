@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link as LinkIcon, Copy, Trash2, CheckCircle2, AlertCircle, Eye } from 'lucide-react';
+import { Link as LinkIcon, Copy, Trash2, CheckCircle2, AlertCircle, Eye, History, X } from 'lucide-react';
 
 interface UrlMapping {
   shortId: string;
@@ -11,7 +11,7 @@ interface UrlMapping {
 }
 
 const LOCAL_STORAGE_KEY = 'briefly_urls_db';
-const ITEMS_PER_PAGE = 3;
+const ITEMS_PER_PAGE = 10;
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -22,6 +22,7 @@ export default function Home() {
   const [baseUrl, setBaseUrl] = useState('');
   const [redirecting, setRedirecting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<UrlMapping | null>(null);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
@@ -97,9 +98,30 @@ export default function Home() {
     }
 
     try {
-      new URL(targetUrl);
+      const parsedUrl = new URL(targetUrl);
+      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+        setError('URL must use http:// or https:// protocol.');
+        return;
+      }
+
+      const hostname = parsedUrl.hostname;
+      const hasDot = hostname.includes('.');
+      const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+      const tld = hasDot ? hostname.split('.').pop() : '';
+      const hasValidTld = tld && tld.length >= 2 && /^[a-z]{2,}$/i.test(tld);
+
+      if (!isLocalhost && (!hasDot || !hasValidTld)) {
+        setError('Please enter a valid URL with a valid domain extension (e.g. .com, .org).');
+        return;
+      }
+
+      // Prevent shortening URLs that belong to this service
+      if (baseUrl && targetUrl.startsWith(baseUrl)) {
+        setError('You cannot shorten a URL from this service.');
+        return;
+      }
     } catch {
-      setError('Please enter a valid URL (including http:// or https://)');
+      setError('Please enter a valid URL.');
       return;
     }
 
@@ -228,9 +250,18 @@ export default function Home() {
 
   return (
     <div className="container">
-      <div className="layout-grid">
-        {/* Left Side: Shortener Panel */}
-        <div className="glass-panel">
+      <div className="layout-centered">
+        {/* Shortener Panel */}
+        <div className="glass-panel main-panel" style={{ position: 'relative' }}>
+          <button 
+            onClick={() => setIsHistoryOpen(true)} 
+            className="history-trigger-btn"
+            title="View History"
+            type="button"
+          >
+            <History size={20} />
+          </button>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <LinkIcon size={32} style={{ color: '#60a5fa' }} />
             <h1 style={{ margin: 0, fontSize: '2.25rem', textAlign: 'left' }}>Briefly</h1>
@@ -261,100 +292,94 @@ export default function Home() {
             )}
           </form>
         </div>
+      </div>
 
-        {/* Right Side: Recent Links */}
-        <div className="glass-panel" style={{ padding: '2rem 1.75rem', display: 'flex', flexDirection: 'column', minHeight: '380px' }}>
-          <h2 style={{ fontSize: '1.2rem', marginTop: 0, marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', fontWeight: 600 }}>
-            Recent Links
-          </h2>
-          <div className="url-list" style={{ flex: 1 }}>
-            {paginatedUrls.length === 0 ? (
-              <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '3rem 0', fontSize: '0.9rem' }}>
-                No links yet. Create your first one on the left!
-              </p>
-            ) : (
-              paginatedUrls.map((u) => {
-                const fullShortUrl = `${baseUrl}#${u.shortId}`;
-                return (
-                  <div className="url-item" key={u.shortId}>
-                    <div className="url-details" title={`Short: ${fullShortUrl}\nLong: ${u.longUrl}`}>
-                      <div className="long-url">
-                        {u.longUrl}
+      {/* History Modal */}
+      {isHistoryOpen && (
+        <div className="modal-overlay" onClick={() => setIsHistoryOpen(false)}>
+          <div className="modal-content history-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2 className="modal-title">
+                <History size={22} style={{ color: '#60a5fa', marginRight: '0.5rem' }} />
+                Recent Links History
+              </h2>
+              <button className="close-btn" onClick={() => setIsHistoryOpen(false)}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="history-grid">
+              {paginatedUrls.length === 0 ? (
+                <div className="empty-state">
+                  <p>No links yet. Create your first one!</p>
+                </div>
+              ) : (
+                paginatedUrls.map((u) => {
+                  const fullShortUrl = `${baseUrl}#${u.shortId}`;
+                  return (
+                    <div className="history-card" key={u.shortId}>
+                      <div className="history-card-header">
+                        <div className="history-clicks" title="Total clicks">
+                          <span className="clicks-val">{u.clicks}</span>
+                          <span className="clicks-lbl">clicks</span>
+                        </div>
                       </div>
-                      <a href={fullShortUrl} target="_blank" rel="noopener noreferrer" className="short-url">
-                        {baseUrl.replace(/^https?:\/\//i, '')}#<span style={{ color: 'white' }}>{u.shortId}</span>
-                      </a>
-                    </div>
-                    <div className="url-actions">
-                      <div className="click-count" title="Total clicks">
-                        <span>{u.clicks}</span>
-                        <label>Clicks</label>
+                      <div className="history-card-body">
+                        <div className="history-long-url" title={u.longUrl}>
+                          {u.longUrl}
+                        </div>
+                        <a href={fullShortUrl} target="_blank" rel="noopener noreferrer" className="history-short-url">
+                          #{u.shortId}
+                        </a>
                       </div>
-                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <div className="history-card-actions">
                         <button className="action-btn" onClick={() => handleCopy(u.shortId)} title="Copy URL">
-                          <Copy size={16} />
+                          <Copy size={14} />
                         </button>
-                        <button className="action-btn" onClick={() => setPreviewUrl(u)} title="View full details">
-                          <Eye size={16} />
+                        <button className="action-btn" onClick={() => setPreviewUrl(u)} title="View Details">
+                          <Eye size={14} />
                         </button>
                         <button className="action-btn delete-btn" onClick={() => handleDelete(u.shortId)} title="Delete URL">
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                         </button>
                       </div>
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })
+              )}
+            </div>
+
+            {/* Pagination Component */}
+            {urls.length > 0 && (
+              <div className="pagination">
+                {getPaginationRange().map((page, idx) => {
+                  if (page === '...') {
+                    return (
+                      <span key={`ellipsis-${idx}`} className="page-ellipsis">
+                        ...
+                      </span>
+                    );
+                  }
+                  return (
+                    <button
+                      key={`page-${page}`}
+                      className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(page as number)}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
-
-          {/* Pagination Component */}
-          {urls.length > 0 && (
-            <div className="pagination">
-              {getPaginationRange().map((page, idx) => {
-                if (page === '...') {
-                  return (
-                    <span key={`ellipsis-${idx}`} className="page-ellipsis">
-                      ...
-                    </span>
-                  );
-                }
-                return (
-                  <button
-                    key={`page-${page}`}
-                    className={`page-btn ${currentPage === page ? 'active' : ''}`}
-                    onClick={() => setCurrentPage(page as number)}
-                  >
-                    {page}
-                  </button>
-                );
-              })}
-            </div>
-          )}
         </div>
-      </div>
+      )}
 
       {/* Modal for full URL preview */}
       {previewUrl && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(15, 23, 42, 0.75)',
-          backdropFilter: 'blur(8px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 100,
-        }} onClick={() => setPreviewUrl(null)}>
-          <div style={{
-            background: '#1e293b',
-            border: '1px solid var(--border-color)',
-            borderRadius: '1rem',
-            padding: '2rem',
-            width: '90%',
-            maxWidth: '550px',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
-          }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setPreviewUrl(null)}>
+          <div className="modal-content preview-modal" onClick={(e) => e.stopPropagation()}>
             <h3 style={{ marginTop: 0, marginBottom: '1.25rem', color: 'white', fontWeight: 600 }}>Link Details</h3>
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
