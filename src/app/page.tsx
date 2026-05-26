@@ -10,35 +10,66 @@ interface UrlMapping {
   createdAt: string;
 }
 
+const LOCAL_STORAGE_KEY = 'briefly_urls_db';
+
 export default function Home() {
   const [url, setUrl] = useState('');
   const [urls, setUrls] = useState<UrlMapping[]>([]);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [toastMessage, setToastMessage] = useState('');
   const [showToast, setShowToast] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
 
-  const [isKvConfigured, setIsKvConfigured] = useState(true);
+  // Helper to load database
+  const getDB = (): Record<string, UrlMapping> => {
+    if (typeof window === 'undefined') return {};
+    const data = localStorage.getItem(LOCAL_STORAGE_KEY);
+    return data ? JSON.parse(data) : {};
+  };
 
-  // Fetch shortened URLs list
-  const fetchUrls = async () => {
-    try {
-      const res = await fetch('/api/shorten');
-      if (res.ok) {
-        const data = await res.json();
-        setUrls(data.urls || []);
-        setIsKvConfigured(data.isKvConfigured !== false);
-      }
-    } catch (err) {
-      console.error('Failed to fetch URLs:', err);
-    }
+  // Helper to save database
+  const saveDB = (db: Record<string, UrlMapping>) => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(db));
+  };
+
+  // Fetch URLs from localStorage
+  const loadUrls = () => {
+    const db = getDB();
+    const sorted = Object.values(db).sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    setUrls(sorted);
   };
 
   useEffect(() => {
-    fetchUrls();
-    // Get host location safely inside browser
-    setBaseUrl(window.location.origin);
+    if (typeof window === 'undefined') return;
+
+    setBaseUrl(window.location.origin + window.location.pathname);
+
+    // Check for redirection via hash
+    const hash = window.location.hash.substring(1);
+    if (hash && hash.length === 6) {
+      const db = getDB();
+      if (db[hash]) {
+        setRedirecting(true);
+        // Increment click
+        db[hash].clicks += 1;
+        saveDB(db);
+
+        // Redirect after 1 second
+        setTimeout(() => {
+          window.location.href = db[hash].longUrl;
+        }, 1000);
+        return;
+      } else {
+        alert('Short URL not found.');
+        window.location.hash = '';
+      }
+    }
+
+    loadUrls();
   }, []);
 
   const triggerToast = (message: string) => {
@@ -49,38 +80,57 @@ export default function Home() {
     }, 3000);
   };
 
-  const handleShorten = async (e: React.FormEvent) => {
+  const handleShorten = (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim()) return;
 
-    setLoading(true);
     setError('');
 
-    try {
-      const res = await fetch('/api/shorten', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url }),
-      });
-
-      const data = await res.json();
-
-      if (res.ok) {
-        setUrl('');
-        fetchUrls();
-        triggerToast('URL Shortened successfully!');
-      } else {
-        setError(data.error || 'Something went wrong');
-      }
-    } catch (err) {
-      setError('Failed to reach backend server');
-    } finally {
-      setLoading(false);
+    let targetUrl = url.trim();
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = 'https://' + targetUrl;
     }
+
+    try {
+      new URL(targetUrl);
+    } catch {
+      setError('Please enter a valid URL (including http:// or https://)');
+      return;
+    }
+
+    const db = getDB();
+
+    // Check if URL already shortened to avoid duplicate IDs
+    const existingId = Object.keys(db).find((key) => db[key].longUrl === targetUrl);
+
+    if (existingId) {
+      setUrl('');
+      triggerToast('URL already shortened!');
+      return;
+    }
+
+    // Generate unique 6-character code
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    let shortId = '';
+    for (let i = 0; i < 6; i++) {
+      shortId += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+
+    db[shortId] = {
+      shortId,
+      longUrl: targetUrl,
+      clicks: 0,
+      createdAt: new Date().toISOString(),
+    };
+
+    saveDB(db);
+    setUrl('');
+    loadUrls();
+    triggerToast('URL Shortened successfully!');
   };
 
   const handleCopy = (shortId: string) => {
-    const fullUrl = `${baseUrl}/${shortId}`;
+    const fullUrl = `${baseUrl}#${shortId}`;
     navigator.clipboard.writeText(fullUrl).then(() => {
       triggerToast('Copied to clipboard!');
     }).catch(() => {
@@ -88,51 +138,54 @@ export default function Home() {
     });
   };
 
-  const handleDelete = async (shortId: string) => {
+  const handleDelete = (shortId: string) => {
     if (!confirm('Are you sure you want to delete this link?')) return;
 
-    try {
-      const res = await fetch(`/api/shorten?code=${shortId}`, {
-        method: 'DELETE',
-      });
-
-      if (res.ok) {
-        fetchUrls();
-        triggerToast('URL deleted successfully!');
-      } else {
-        triggerToast('Failed to delete URL');
-      }
-    } catch (err) {
-      triggerToast('Network error while deleting URL');
-    }
+    const db = getDB();
+    delete db[shortId];
+    saveDB(db);
+    loadUrls();
+    triggerToast('URL deleted successfully!');
   };
+
+  if (redirecting) {
+    return (
+      <div style={{
+        position: 'fixed',
+        top: 0, left: 0, width: '100%', height: '100%',
+        background: '#0f172a',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+      }}>
+        <div style={{
+          border: '4px solid rgba(255,255,255,0.1)',
+          borderTop: '4px solid #3b82f6',
+          borderRadius: '50%',
+          width: '50px',
+          height: '50px',
+          animation: 'spin 1s linear infinite',
+          marginBottom: '1.5rem',
+        }}></div>
+        <h2 style={{ margin: '0 0 0.5rem 0', fontWeight: 600 }}>Redirecting...</h2>
+        <p style={{ color: '#94a3b8', margin: 0 }}>Taking you to your destination</p>
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}} />
+      </div>
+    );
+  }
 
   return (
     <div className="container">
       <div className="glass-panel">
         <h1>Briefly</h1>
         <p className="subtitle">Shorten your links. Track your clicks. Beautifully simple.</p>
-
-        {!isKvConfigured && (
-          <div style={{
-            background: 'rgba(239, 68, 68, 0.15)',
-            border: '1px solid rgba(239, 68, 68, 0.3)',
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            color: '#fca5a5',
-            fontSize: '0.9rem',
-            marginBottom: '1.5rem',
-            display: 'flex',
-            alignItems: 'flex-start',
-            gap: '0.75rem',
-            lineHeight: '1.4'
-          }}>
-            <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '0.1rem' }} />
-            <div>
-              <strong>Database Not Connected:</strong> To store URLs permanently on Vercel, link a database. Go to your Vercel Dashboard &rarr; <strong>Storage</strong>, create a free <strong>KV</strong> database, and link it with this project in 1 click.
-            </div>
-          </div>
-        )}
 
         <form onSubmit={handleShorten}>
           <div className="input-group">
@@ -144,9 +197,9 @@ export default function Home() {
               required
               autoComplete="off"
             />
-            <button type="submit" className="primary-btn" disabled={loading}>
+            <button type="submit" className="primary-btn">
               <Link size={20} />
-              {loading ? 'Shortening...' : 'Shorten'}
+              Shorten
             </button>
           </div>
           {error && (
@@ -169,7 +222,7 @@ export default function Home() {
             </p>
           ) : (
             urls.map((u) => {
-              const fullShortUrl = `${baseUrl}/${u.shortId}`;
+              const fullShortUrl = `${baseUrl}#${u.shortId}`;
               return (
                 <div className="url-item" key={u.shortId}>
                   <div className="url-details">
@@ -177,7 +230,7 @@ export default function Home() {
                       {u.longUrl}
                     </div>
                     <a href={fullShortUrl} target="_blank" rel="noopener noreferrer" className="short-url">
-                      {baseUrl.replace(/^https?:\/\//i, '')}/<span style={{ color: 'white' }}>{u.shortId}</span>
+                      {baseUrl.replace(/^https?:\/\//i, '')}#<span style={{ color: 'white' }}>{u.shortId}</span>
                     </a>
                   </div>
                   <div className="url-actions">
