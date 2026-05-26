@@ -2,7 +2,7 @@
 
 :root {
   --bg-color: #0f172a;
-  --container-bg: rgba(30, 41, 59, 0.55);
+  --container-bg: rgba(30, 41, 59, 0.45);
   --primary: #3b82f6;
   --primary-hover: #2563eb;
   --text-main: #f8fafc;
@@ -17,8 +17,8 @@ body {
   background: var(--bg-color);
   background-image: 
     radial-gradient(at 0% 0%, hsla(253,16%,7%,1) 0, transparent 50%), 
-    radial-gradient(at 50% 0%, hsla(225,39%,25%,0.7) 0, transparent 50%), 
-    radial-gradient(at 100% 0%, hsla(339,49%,25%,0.7) 0, transparent 50%);
+    radial-gradient(at 50% 0%, hsla(225,39%,22%,0.7) 0, transparent 50%), 
+    radial-gradient(at 100% 0%, hsla(339,49%,22%,0.7) 0, transparent 50%);
   background-attachment: fixed;
   color: var(--text-main);
   min-height: 100vh;
@@ -42,15 +42,20 @@ body {
 
 .layout-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 380px minmax(0, 1fr);
   gap: 2.5rem;
   align-items: start;
 }
 
+/* Fix flex/grid item shrinking */
+.layout-grid > * {
+  min-width: 0;
+}
+
 .glass-panel {
   background: var(--container-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
   border-radius: 1.25rem;
   border: 1px solid var(--border-color);
   padding: 2.5rem;
@@ -59,7 +64,7 @@ body {
 
 h1 {
   font-weight: 700;
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   margin-top: 0;
   margin-bottom: 0.5rem;
   background: linear-gradient(to right, #60a5fa, #c084fc);
@@ -69,8 +74,8 @@ h1 {
 
 p.subtitle {
   color: var(--text-muted);
-  margin-bottom: 2.5rem;
-  font-size: 1.05rem;
+  margin-bottom: 2rem;
+  font-size: 1rem;
   line-height: 1.5;
 }
 
@@ -82,12 +87,12 @@ p.subtitle {
 
 input[type="url"] {
   width: 100%;
-  padding: 1.1rem 1.5rem;
+  padding: 1rem 1.25rem;
   border-radius: 0.75rem;
   border: 1px solid var(--border-color);
   background: rgba(15, 23, 42, 0.65);
   color: white;
-  font-size: 1rem;
+  font-size: 0.95rem;
   outline: none;
   transition: all 0.3s ease;
 }
@@ -104,13 +109,13 @@ input[type="url"]::placeholder {
 
 button.primary-btn {
   width: 100%;
-  padding: 1.1rem 2rem;
+  padding: 1rem 2rem;
   border-radius: 0.75rem;
   border: none;
   background: var(--primary);
   color: white;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.95rem;
   cursor: pointer;
   transition: all 0.3s ease;
   display: flex;
@@ -128,68 +133,69 @@ button.primary-btn:hover {
 .url-list {
   display: flex;
   flex-direction: column;
-  gap: 0.85rem;
-  max-height: 480px;
+  gap: 0.75rem;
+  max-height: 485px;
   overflow-y: auto;
-  padding-right: 0.5rem;
+  padding-right: 0.25rem;
 }
 
 /* Custom Scrollbar for list */
 .url-list::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 .url-list::-webkit-scrollbar-track {
   background: transparent;
 }
 .url-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   border-radius: 3px;
 }
 .url-list::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .url-item {
-  background: rgba(15, 23, 42, 0.35);
+  background: rgba(15, 23, 42, 0.3);
   border: 1px solid var(--border-color);
   border-radius: 0.75rem;
-  padding: 1.1rem 1.25rem;
+  padding: 1rem 1.25rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.25s ease;
+  transition: all 0.2s ease;
+  min-width: 0; /* Critical for layout compression */
 }
 
 .url-item:hover {
-  background: rgba(15, 23, 42, 0.65);
-  border-color: rgba(255, 255, 255, 0.15);
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .url-details {
   flex: 1;
-  overflow: hidden;
-  padding-right: 1rem;
+  min-width: 0; /* Ensures container can shrink below content size */
+  padding-right: 1.5rem;
 }
 
 .long-url {
   color: var(--text-muted);
-  font-size: 0.8rem;
+  font-size: 0.775rem;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  margin-bottom: 0.25rem;
+  margin-bottom: 0.2rem;
+  display: block;
 }
 
 .short-url {
   color: #60a5fa;
   font-weight: 600;
-  font-size: 0.95rem;
+  font-size: 0.925rem;
   text-decoration: none;
-  display: inline-block;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+  display: block;
 }
 
 .short-url:hover {
@@ -212,14 +218,14 @@ button.primary-btn:hover {
 }
 
 .click-count span {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-weight: 700;
   line-height: 1;
   margin-bottom: 0.15rem;
 }
 
 .click-count label {
-  font-size: 0.6rem;
+  font-size: 0.575rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -227,27 +233,27 @@ button.primary-btn:hover {
 
 .action-btn {
   background: rgba(255,255,255,0.03);
-  padding: 0.6rem;
-  border-radius: 0.5rem;
+  padding: 0.55rem;
+  border-radius: 0.45rem;
   border: 1px solid transparent;
   color: var(--text-main);
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.15s ease;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .action-btn:hover {
-  background: rgba(255,255,255,0.08);
-  border-color: rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.07);
   color: #60a5fa;
 }
 
 .delete-btn:hover {
   color: #ef4444;
-  background: rgba(239, 68, 68, 0.08);
-  border-color: rgba(239, 68, 68, 0.15);
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.12);
 }
 
 .error-msg {
@@ -264,19 +270,19 @@ button.primary-btn:hover {
   position: fixed;
   bottom: 2rem;
   right: 2rem;
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.95);
   border: 1px solid rgba(16, 185, 129, 0.3);
   backdrop-filter: blur(12px);
   color: #10b981;
-  padding: 1rem 1.75rem;
-  border-radius: 0.75rem;
+  padding: 0.9rem 1.5rem;
+  border-radius: 0.6rem;
   box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
   transform: translateY(150%);
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   font-weight: 600;
   display: flex;
   align-items: center;
-  gap: 0.6rem;
+  gap: 0.5rem;
   z-index: 50;
 }
 
