@@ -19,6 +19,8 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
 
+  const [isKvConfigured, setIsKvConfigured] = useState(true);
+
   // Fetch shortened URLs list
   const fetchUrls = async () => {
     try {
@@ -26,6 +28,7 @@ export default function Home() {
       if (res.ok) {
         const data = await res.json();
         setUrls(data.urls || []);
+        setIsKvConfigured(data.isKvConfigured !== false);
       }
     } catch (err) {
       console.error('Failed to fetch URLs:', err);
@@ -109,6 +112,27 @@ export default function Home() {
       <div className="glass-panel">
         <h1>Briefly</h1>
         <p className="subtitle">Shorten your links. Track your clicks. Beautifully simple.</p>
+
+        {!isKvConfigured && (
+          <div style={{
+            background: 'rgba(239, 68, 68, 0.15)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            color: '#fca5a5',
+            fontSize: '0.9rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.75rem',
+            lineHeight: '1.4'
+          }}>
+            <AlertCircle size={20} style={{ flexShrink: 0, marginTop: '0.1rem' }} />
+            <div>
+              <strong>Database Not Connected:</strong> To store URLs permanently on Vercel, link a database. Go to your Vercel Dashboard &rarr; <strong>Storage</strong>, create a free <strong>KV</strong> database, and link it with this project in 1 click.
+            </div>
+          </div>
+        )}
 
         <form onSubmit={handleShorten}>
           <div className="input-group">

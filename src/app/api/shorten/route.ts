@@ -1,10 +1,10 @@
 import { NextResponse } from 'next/server';
-import { saveUrl, listUrls, deleteUrl } from '../../../lib/db';
+import { saveUrl, listUrls, deleteUrl, isKvConfigured } from '../../../lib/db';
 
 export async function GET() {
   try {
     const urls = await listUrls();
-    return NextResponse.json({ urls });
+    return NextResponse.json({ urls, isKvConfigured });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch URLs' }, { status: 500 });
   }

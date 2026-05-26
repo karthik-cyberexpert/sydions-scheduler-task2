@@ -12,7 +12,7 @@ export interface UrlMapping {
 const LOCAL_DB_PATH = path.join(process.cwd(), 'local-db.json');
 
 // Check if Vercel KV is configured
-const isKvConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+export const isKvConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
 
 function getLocalDB(): Record<string, UrlMapping> {
   try {
@@ -27,11 +27,7 @@ function getLocalDB(): Record<string, UrlMapping> {
 }
 
 function saveLocalDB(db: Record<string, UrlMapping>) {
-  try {
-    fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
-  } catch (error) {
-    console.error('Error writing to local DB:', error);
-  }
+  fs.writeFileSync(LOCAL_DB_PATH, JSON.stringify(db, null, 2), 'utf-8');
 }
 
 export async function getUrl(shortId: string): Promise<UrlMapping | null> {
