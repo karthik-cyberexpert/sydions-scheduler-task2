@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Link, Copy, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Link as LinkIcon, Copy, Trash2, CheckCircle2, AlertCircle, Eye } from 'lucide-react';
 
 interface UrlMapping {
   shortId: string;
@@ -20,6 +20,7 @@ export default function Home() {
   const [showToast, setShowToast] = useState(false);
   const [baseUrl, setBaseUrl] = useState('');
   const [redirecting, setRedirecting] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<UrlMapping | null>(null);
 
   // Helper to load database
   const getDB = (): Record<string, UrlMapping> => {
@@ -183,79 +184,152 @@ export default function Home() {
 
   return (
     <div className="container">
-      <div className="glass-panel">
-        <h1>Briefly</h1>
-        <p className="subtitle">Shorten your links. Track your clicks. Beautifully simple.</p>
-
-        <form onSubmit={handleShorten}>
-          <div className="input-group">
-            <input
-              type="url"
-              placeholder="Paste your long URL here (https://...)"
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              required
-              autoComplete="off"
-            />
-            <button type="submit" className="primary-btn">
-              <Link size={20} />
-              Shorten
-            </button>
+      <div className="layout-grid">
+        {/* Left Side: Shortener Panel */}
+        <div className="glass-panel">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
+            <LinkIcon size={32} style={{ color: '#60a5fa' }} />
+            <h1 style={{ margin: 0, fontSize: '2.25rem', textAlign: 'left' }}>Briefly</h1>
           </div>
-          {error && (
-            <div className="error-msg" style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-              <AlertCircle size={16} />
-              {error}
-            </div>
-          )}
-        </form>
-      </div>
+          <p className="subtitle" style={{ textAlign: 'left', marginBottom: '2rem' }}>
+            Shorten your links. Track your clicks. Beautifully simple.
+          </p>
 
-      <div className="glass-panel" style={{ paddingTop: '1.5rem' }}>
-        <h2 style={{ fontSize: '1.25rem', marginTop: 0, marginBottom: '1.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '1rem', fontWeight: 600 }}>
-          Recent Links
-        </h2>
-        <div className="url-list">
-          {urls.length === 0 ? (
-            <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '2rem 0' }}>
-              No links yet. Create your first one above!
-            </p>
-          ) : (
-            urls.map((u) => {
-              const fullShortUrl = `${baseUrl}#${u.shortId}`;
-              return (
-                <div className="url-item" key={u.shortId}>
-                  <div className="url-details">
-                    <div className="long-url" title={u.longUrl}>
-                      {u.longUrl}
+          <form onSubmit={handleShorten}>
+            <div className="input-group">
+              <input
+                type="url"
+                placeholder="Paste your long URL here (https://...)"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                required
+                autoComplete="off"
+              />
+              <button type="submit" className="primary-btn">
+                Shorten Link
+              </button>
+            </div>
+            {error && (
+              <div className="error-msg">
+                <AlertCircle size={16} />
+                {error}
+              </div>
+            )}
+          </form>
+        </div>
+
+        {/* Right Side: Recent Links */}
+        <div className="glass-panel" style={{ padding: '2rem 1.75rem' }}>
+          <h2 style={{ fontSize: '1.2rem', marginTop: 0, marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', fontWeight: 600 }}>
+            Recent Links
+          </h2>
+          <div className="url-list">
+            {urls.length === 0 ? (
+              <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '3rem 0', fontSize: '0.9rem' }}>
+                No links yet. Create your first one on the left!
+              </p>
+            ) : (
+              urls.map((u) => {
+                const fullShortUrl = `${baseUrl}#${u.shortId}`;
+                return (
+                  <div className="url-item" key={u.shortId}>
+                    <div className="url-details" title={`Short: ${fullShortUrl}\nLong: ${u.longUrl}`}>
+                      <div className="long-url">
+                        {u.longUrl}
+                      </div>
+                      <a href={fullShortUrl} target="_blank" rel="noopener noreferrer" className="short-url">
+                        {baseUrl.replace(/^https?:\/\//i, '')}#<span style={{ color: 'white' }}>{u.shortId}</span>
+                      </a>
                     </div>
-                    <a href={fullShortUrl} target="_blank" rel="noopener noreferrer" className="short-url">
-                      {baseUrl.replace(/^https?:\/\//i, '')}#<span style={{ color: 'white' }}>{u.shortId}</span>
-                    </a>
+                    <div className="url-actions">
+                      <div className="click-count" title="Total clicks">
+                        <span>{u.clicks}</span>
+                        <label>Clicks</label>
+                      </div>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <button className="action-btn" onClick={() => handleCopy(u.shortId)} title="Copy URL">
+                          <Copy size={16} />
+                        </button>
+                        <button className="action-btn" onClick={() => setPreviewUrl(u)} title="View full details">
+                          <Eye size={16} />
+                        </button>
+                        <button className="action-btn delete-btn" onClick={() => handleDelete(u.shortId)} title="Delete URL">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="url-actions">
-                    <div className="click-count" title="Total clicks">
-                      <span>{u.clicks}</span>
-                      <label>Clicks</label>
-                    </div>
-                    <div style={{ display: 'flex', gap: '0.5rem' }}>
-                      <button className="action-btn" onClick={() => handleCopy(u.shortId)} title="Copy URL">
-                        <Copy size={18} />
-                      </button>
-                      <button className="action-btn delete-btn" onClick={() => handleDelete(u.shortId)} title="Delete URL">
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
+                );
+              })
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Modal for full URL preview */}
+      {previewUrl && (
+        <div style={{
+          position: 'fixed',
+          top: 0, left: 0, width: '100%', height: '100%',
+          background: 'rgba(15, 23, 42, 0.75)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 100,
+        }} onClick={() => setPreviewUrl(null)}>
+          <div style={{
+            background: '#1e293b',
+            border: '1px solid var(--border-color)',
+            borderRadius: '1rem',
+            padding: '2rem',
+            width: '90%',
+            maxWidth: '550px',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <h3 style={{ marginTop: 0, marginBottom: '1.25rem', color: 'white', fontWeight: 600 }}>Link Details</h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginBottom: '1.5rem' }}>
+              <div>
+                <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Shortened Link</label>
+                <a href={`${baseUrl}#${previewUrl.shortId}`} target="_blank" rel="noopener noreferrer" style={{ color: '#60a5fa', wordBreak: 'break-all', fontSize: '1rem', textDecoration: 'none', fontWeight: 600 }}>
+                  {baseUrl}#{previewUrl.shortId}
+                </a>
+              </div>
+              
+              <div>
+                <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Destination URL</label>
+                <div style={{ color: 'white', wordBreak: 'break-all', fontSize: '0.95rem', background: 'rgba(15,23,42,0.3)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  {previewUrl.longUrl}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '2rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Total Clicks</label>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 700, color: '#c084fc' }}>{previewUrl.clicks}</span>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.75rem', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: '0.25rem' }}>Created At</label>
+                  <span style={{ fontSize: '0.95rem', color: 'white' }}>{new Date(previewUrl.createdAt).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button className="primary-btn" style={{ width: 'auto', padding: '0.6rem 1.5rem', background: 'rgba(255,255,255,0.08)', color: 'white' }} onClick={() => setPreviewUrl(null)}>
+                Close
+              </button>
+              <button className="primary-btn" style={{ width: 'auto', padding: '0.6rem 1.5rem' }} onClick={() => { handleCopy(previewUrl.shortId); setPreviewUrl(null); }}>
+                Copy Link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={`toast ${showToast ? 'show' : ''}`}>
-        <CheckCircle2 size={20} />
+        <CheckCircle2 size={18} />
         {toastMessage}
       </div>
     </div>
