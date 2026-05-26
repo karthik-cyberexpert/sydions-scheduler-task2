@@ -11,6 +11,7 @@ interface UrlMapping {
 }
 
 const LOCAL_STORAGE_KEY = 'briefly_urls_db';
+const ITEMS_PER_PAGE = 3;
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -21,6 +22,9 @@ export default function Home() {
   const [baseUrl, setBaseUrl] = useState('');
   const [redirecting, setRedirecting] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<UrlMapping | null>(null);
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
 
   // Helper to load database
   const getDB = (): Record<string, UrlMapping> => {
@@ -127,6 +131,7 @@ export default function Home() {
     saveDB(db);
     setUrl('');
     loadUrls();
+    setCurrentPage(1); // Jump to first page to see the new item
     triggerToast('URL Shortened successfully!');
   };
 
@@ -145,8 +150,47 @@ export default function Home() {
     const db = getDB();
     delete db[shortId];
     saveDB(db);
+    
+    // Adjust current page if we delete the last item on the active page
+    const updatedUrls = urls.filter(u => u.shortId !== shortId);
+    const newTotalPages = Math.ceil(updatedUrls.length / ITEMS_PER_PAGE);
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(newTotalPages);
+    }
+    
     loadUrls();
     triggerToast('URL deleted successfully!');
+  };
+
+  // Pagination calculation
+  const totalPages = Math.max(1, Math.ceil(urls.length / ITEMS_PER_PAGE));
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedUrls = urls.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+  // Generate page numbers range: e.g., 1, ..., 4, 5, ..., 10
+  const getPaginationRange = () => {
+    const range: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) range.push(i);
+    } else {
+      range.push(1);
+      
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      if (start > 2) {
+        range.push('...');
+      }
+      for (let i = start; i <= end; i++) {
+        range.push(i);
+      }
+      if (end < totalPages - 1) {
+        range.push('...');
+      }
+      
+      range.push(totalPages);
+    }
+    return range;
   };
 
   if (redirecting) {
@@ -219,17 +263,17 @@ export default function Home() {
         </div>
 
         {/* Right Side: Recent Links */}
-        <div className="glass-panel" style={{ padding: '2rem 1.75rem' }}>
+        <div className="glass-panel" style={{ padding: '2rem 1.75rem', display: 'flex', flexDirection: 'column', minHeight: '380px' }}>
           <h2 style={{ fontSize: '1.2rem', marginTop: 0, marginBottom: '1.25rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.75rem', fontWeight: 600 }}>
             Recent Links
           </h2>
-          <div className="url-list">
-            {urls.length === 0 ? (
+          <div className="url-list" style={{ flex: 1 }}>
+            {paginatedUrls.length === 0 ? (
               <p style={{ textAlign: 'center', color: 'var(--text-muted)', margin: '3rem 0', fontSize: '0.9rem' }}>
                 No links yet. Create your first one on the left!
               </p>
             ) : (
-              urls.map((u) => {
+              paginatedUrls.map((u) => {
                 const fullShortUrl = `${baseUrl}#${u.shortId}`;
                 return (
                   <div className="url-item" key={u.shortId}>
@@ -263,6 +307,30 @@ export default function Home() {
               })
             )}
           </div>
+
+          {/* Pagination Component */}
+          {urls.length > 0 && (
+            <div className="pagination">
+              {getPaginationRange().map((page, idx) => {
+                if (page === '...') {
+                  return (
+                    <span key={`ellipsis-${idx}`} className="page-ellipsis">
+                      ...
+                    </span>
+                  );
+                }
+                return (
+                  <button
+                    key={`page-${page}`}
+                    className={`page-btn ${currentPage === page ? 'active' : ''}`}
+                    onClick={() => setCurrentPage(page as number)}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
